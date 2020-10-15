@@ -1,49 +1,70 @@
-import React, { useEffect } from 'react';
-import { UPDATE_CATEGORIES, UPDATE_CURRENT_CATEGORY } from '../../utils/actions';
-import { useQuery } from '@apollo/react-hooks';
-import { QUERY_CATEGORIES } from "../../utils/queries";
-import { useStoreContext } from "../../utils/GlobalState";
+import React from 'react';
+import { useDispatch } from 'react-redux';
+import { REMOVE_FROM_CART, UPDATE_CART_QUANTITY } from "../../utils/actions";
+import { idbPromise } from "../../utils/helpers";
 
-function CategoryMenu({ setCategory }) {
-const [state, dispatch] = useStoreContext();
+const CartItem = ({ item }) => {
+  const dispatch = useDispatch();
 
-const { categories } = state;
-
-const { data: categoryData } = useQuery(QUERY_CATEGORIES);
-
-useEffect(() => {
-  // if categoryData exists or has changed from the response of useQuery, then run dispatch()
-  if (categoryData) {
-    // execute our dispatch function with our action object indicating the type of action and the data to set our state for categories to
+  const removeFromCart = item => {
     dispatch({
-      type: UPDATE_CATEGORIES,
-      categories: categoryData.categories
+      type: REMOVE_FROM_CART,
+      _id: item._id
     });
-  }
-}, [categoryData, dispatch]);
+    idbPromise('cart', 'delete', { ...item });
 
-const handleClick = id => {
-  dispatch({
-    type: UPDATE_CURRENT_CATEGORY,
-    currentCategory: id
-  });
-};
+  };
+
+  const onChange = (e) => {
+    const value = e.target.value;
+    if (value === '0') {
+      dispatch({
+        type: REMOVE_FROM_CART,
+        _id: item._id
+      });
+      idbPromise('cart', 'delete', { ...item });
+
+    } else {
+      dispatch({
+        type: UPDATE_CART_QUANTITY,
+        _id: item._id,
+        purchaseQuantity: parseInt(value)
+      });
+      idbPromise('cart', 'put', { ...item, purchaseQuantity: parseInt(value) });
+
+    }
+  }
 
   return (
-    <div>
-      <h2>Choose a Category:</h2>
-      {categories.map(item => (
-        <button
-          key={item._id}
-          onClick={() => {
-            handleClick(item._id);
-          }}
-        >
-          {item.name}
-        </button>
-      ))}
+    <div className="flex-row">
+      <div>
+        <img
+          src={`/images/${item.image}`}
+          alt=""
+        />
+      </div>
+      <div>
+        <div>{item.name}, ${item.price}</div>
+        <div>
+          <span>Qty:</span>
+          <input
+            type="number"
+            placeholder="1"
+            value={item.purchaseQuantity}
+            onChange={onChange}
+          />
+          <span
+            role="img"
+            aria-label="trash"
+            onClick={() => removeFromCart(item)}
+          >
+            🗑️
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
 
-export default CategoryMenu;
+export default CartItem;
+
